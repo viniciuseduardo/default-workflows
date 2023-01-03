@@ -4,7 +4,7 @@ name: Security
 on:
   pull_request:
     branches:
-      - master
+      - main
 
 concurrency:
   group: security-checks-${{ github.head_ref }}
