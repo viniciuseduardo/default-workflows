@@ -1,10 +1,10 @@
 ---
-name: Security
+name: Security by Submodules
 
 on:
   pull_request:
     branches:
-      - main
+      - "feat/**"
 
 concurrency:
   group: security-checks-${{ github.head_ref }}
