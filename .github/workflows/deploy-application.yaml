@@ -1,0 +1,63 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+*
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  prepare:
+    name: Prepare
+    uses: dlpco/app-github-workflows/.github/workflows/go-prepare-deploy.yml@go-prepare-deploy/stable
+
+  build:
+    name: Build
+    needs: [ prepare ]
+    uses: dlpco/app-github-workflows/.github/workflows/go-docker-image-build.yml@go-docker-image-build/stable
+    with:
+      application: 'cobaia-devops'
+      cmds: '["api"]'
+      push: true
+      tag: ${{ needs.prepare.outputs.tag }}
+    secrets: inherit
+
+  homolog:
+    name: Homolog
+    needs: [ prepare, build ]
+    # if: needs.prepare.outputs.homolog == 'true'
+    uses: dlpco/infra-github-workflows/.github/workflows/deploy-app.yml@feat/unify-helmfile-deploy-pipelines
+    with:
+      tag: ${{ needs.prepare.outputs.tag }}
+      application_type: infra
+      environment: homolog
+    secrets: inherit
+
+  sandbox:
+    name: Sandbox
+    needs: [ prepare,  build ]
+    if: needs.prepare.outputs.sandbox == 'true'
+    uses: dlpco/infra-github-workflows/.github/workflows/deploy-app.yml@feat/unify-helmfile-deploy-pipelines
+    with:
+      tag: ${{ needs.prepare.outputs.tag }}
+      application_type: infra
+      environment: sandbox
+    secrets: inherit
+
+  production:
+    name: Production
+    needs: [ prepare, build, sandbox ]
+    if: needs.prepare.outputs.production == 'true'
+    uses: dlpco/infra-github-workflows/.github/workflows/deploy-app.yml@feat/unify-helmfile-deploy-pipelines
+    with:
+      tag: ${{ needs.prepare.outputs.tag }}
+      application_type: infra
+      environment: production
+    secrets: inherit
